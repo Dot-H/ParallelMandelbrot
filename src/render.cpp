@@ -1,6 +1,8 @@
 #include "render.hpp"
+#include <iostream>
 #include <cassert>
 #include <cstdint>
+#include <vector>
 
 struct rgb8_t {
   std::uint8_t r;
@@ -29,8 +31,7 @@ rgb8_t heat_lut(float x) {
   }
 }
 
-static int trace_mandelbroot(float y0, int pix_x, int n_iterations) {
-    float x0 = float(pix_x); // FIXME SCALE
+static int trace_mandelbroot(float y0, float x0, int n_iterations) {
 
     int iteration = 0;
     float x = 0.0;
@@ -40,7 +41,7 @@ static int trace_mandelbroot(float y0, int pix_x, int n_iterations) {
 
     for (; x2 + y2 < 4.0 && iteration < n_iterations; ++iteration) {
         float xtemp = x2 - y2 + x0;
-        y = 2 * x * y + y0;             
+        y = 2 * x * y + y0;
         x = xtemp;
 
         x2 = x * x;
@@ -50,24 +51,72 @@ static int trace_mandelbroot(float y0, int pix_x, int n_iterations) {
     return iteration;
 }
 
-void render(std::byte *buffer, int width, int height, std::ptrdiff_t stride,
-            int n_iterations) {
+static void color_pixel(rgb8_t *lineptr, int px, float hue) {
+    if (hue < 0)
+        lineptr[px] = rgb8_t{255, 255, 255};
+    else if (hue >= 1)
+        lineptr[px] = rgb8_t{0, 0, 0};
+    else
+        lineptr[px] = heat_lut(hue);
+}
+
+static void color_mandelbroot(std::vector<int>& histo, std::byte *buffer,
+                              std::ptrdiff_t& stride,
+                              std::vector<std::vector<int>>& iter_map) {
+    const int n_iterations = histo.size();
+    const int width = iter_map.size();
+    const int height = iter_map[0].size();
+
+    float total = 0;
+    for (int i = 0; i < n_iterations; ++i)
+        total += histo[i];
+
 
     for (int py = 0; py < height; ++py) {
         rgb8_t *lineptr = reinterpret_cast<rgb8_t *>(buffer);
 
-        float y0 = 0.0; // FIXME SCALE
-
         for (int px = 0; px < width; ++px) {
-            trace_mandelbroot(y0, px, n_iterations);
+            int iterations = iter_map[px][py];
+            float hue = 0.0;
+            for (int i = 0; i <= iterations; ++i)
+                hue += float(histo[i]) / total;
 
-            lineptr[px] = heat_lut((px * px + py * py)
-                            / float(width * width + height * height));
+            color_pixel(lineptr, px, hue);
         }
 
-        /* FIXME Color */
         buffer += stride;
     }
+}
+
+void render(std::byte *buffer, int width, int height, std::ptrdiff_t stride,
+            int n_iterations) {
+    const float yinf = -1;
+    const float ysup = 1;
+    const float xinf = -2.5;
+    const float xsup = 1;
+
+    const float ydist = ysup - yinf; // scale on (-1, 1)
+    const float xdist = xsup - xinf; // scale on (-2.5, 1)
+
+    std::vector<int> histo(n_iterations, 0);
+    std::vector<std::vector<int>> iter_map(width, std::vector<int>(height, 0));
+    std::byte *start_buf = buffer;
+
+    for (int py = 0; py < height; ++py) {
+        float y0 = float(py) / float(height - 1) * ydist + yinf; // Scaled y
+
+        for (int px = 0; px < width; ++px) {
+            float x0 = float(px) / float(width - 1) * xdist + xinf; // Scaled x
+            int iterations = trace_mandelbroot(y0, x0, n_iterations);
+            iter_map[px][py] = iterations;
+            histo[iterations] += 1;
+        }
+
+        buffer += stride;
+    }
+
+
+    color_mandelbroot(histo, start_buf, stride, iter_map);
 }
 
 void render_mt(std::byte *buffer, int width, int height, std::ptrdiff_t stride,

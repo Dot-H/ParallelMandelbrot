@@ -12,6 +12,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "-W -Wall -mavx2")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -s")
 
+set(SDL2_INCLUDE_DIRS "usr/include/SDL2")
+set(SDL2_LIBRARIES "-lSDL2")
+
 include_directories(lib/include)
 
 add_library(renderer src/render.hpp src/render.cpp)
@@ -23,4 +26,3 @@ target_link_libraries(view renderer ${SDL2_LIBRARIES} Threads::Threads)
 
 add_executable(bench src/bench.cpp)
 target_link_libraries(bench renderer benchmark::benchmark)
-
