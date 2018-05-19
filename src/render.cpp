@@ -31,7 +31,7 @@ rgb8_t heat_lut(float x) {
   }
 }
 
-static int trace_mandelbroot(float y0, float x0, int n_iterations) {
+static int trace_mandelbrot(float y0, float x0, int n_iterations) {
 
     int iteration = 0;
     float x = 0.0;
@@ -60,28 +60,28 @@ static void color_pixel(rgb8_t *lineptr, int px, float hue) {
         lineptr[px] = heat_lut(hue);
 }
 
-static void color_mandelbroot(std::vector<int>& histo, std::byte *buffer,
+static void color_mandelbrot(std::vector<int>& histo, std::byte *buffer,
                               std::ptrdiff_t& stride,
                               std::vector<std::vector<int>>& iter_map) {
     const int n_iterations = histo.size();
     const int width = iter_map.size();
     const int height = iter_map[0].size();
 
-    float total = 0;
+    int total = 0;
     for (int i = 0; i < n_iterations; ++i)
         total += histo[i];
 
+    std::vector<float> hue_map(n_iterations + 1);
+    hue_map[0] = float(histo[0]) / float(total);
+    for (int i = 1; i <= n_iterations; ++i)
+        hue_map[i] = hue_map[i - 1] + (float(histo[i]) / float(total));
 
     for (int py = 0; py < height; ++py) {
         rgb8_t *lineptr = reinterpret_cast<rgb8_t *>(buffer);
 
         for (int px = 0; px < width; ++px) {
             int iterations = iter_map[px][py];
-            float hue = 0.0;
-            for (int i = 0; i <= iterations; ++i)
-                hue += float(histo[i]) / total;
-
-            color_pixel(lineptr, px, hue);
+            color_pixel(lineptr, px, hue_map[iterations]);
         }
 
         buffer += stride;
@@ -99,7 +99,7 @@ void render(std::byte *buffer, int width, int height, std::ptrdiff_t stride,
     const float xdist = xsup - xinf; // scale on (-2.5, 1)
 
     std::vector<int> histo(n_iterations, 0);
-    std::vector<std::vector<int>> iter_map(width, std::vector<int>(height, 0));
+    std::vector<std::vector<int>> iter_map(width, std::vector<int>(height));
     std::byte *start_buf = buffer;
 
     for (int py = 0; py < height; ++py) {
@@ -107,7 +107,7 @@ void render(std::byte *buffer, int width, int height, std::ptrdiff_t stride,
 
         for (int px = 0; px < width; ++px) {
             float x0 = float(px) / float(width - 1) * xdist + xinf; // Scaled x
-            int iterations = trace_mandelbroot(y0, x0, n_iterations);
+            int iterations = trace_mandelbrot(y0, x0, n_iterations);
             iter_map[px][py] = iterations;
             histo[iterations] += 1;
         }
@@ -115,8 +115,7 @@ void render(std::byte *buffer, int width, int height, std::ptrdiff_t stride,
         buffer += stride;
     }
 
-
-    color_mandelbroot(histo, start_buf, stride, iter_map);
+    color_mandelbrot(histo, start_buf, stride, iter_map);
 }
 
 void render_mt(std::byte *buffer, int width, int height, std::ptrdiff_t stride,
