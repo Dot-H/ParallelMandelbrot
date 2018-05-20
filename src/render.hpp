@@ -1,6 +1,11 @@
 #pragma once
 #include <cstddef>
 
+#define XINF (-2.5f)
+#define XSUP (1.0f)
+#define YINF (-1.0f)
+#define YSUP (1.0f)
+
 /// \param buffer The RGB24 image buffer
 /// \param width Image width
 /// \param height Image height

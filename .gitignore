@@ -1,4 +1,5 @@
 *.sw*
 *.so
 *.o
+tags
 build

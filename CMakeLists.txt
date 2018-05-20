@@ -8,9 +8,10 @@ find_package(SDL2 REQUIRED)
 find_package(benchmark REQUIRED)
 find_package(TBB)
 
+set(CMAKE_C_COMPILER "/usr/bin/clang++")
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "-W -Wall -mavx2")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -s")
+set(CMAKE_CXX_FLAGS "-W -Wall -mavx2 -O3 -fopenmp")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -s -fopenmp")
 
 set(SDL2_INCLUDE_DIRS "usr/include/SDL2")
 set(SDL2_LIBRARIES "-lSDL2")
